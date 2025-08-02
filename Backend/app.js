@@ -5,10 +5,9 @@ const http = require('http');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { auth } = require('express-openid-connect');
-const mongoose = require('./db');
 const User = require('./models/Uid');
 const { stat } = require('fs');
-const { addEntry } = require('./db');
+const { mongoose, addEntry, getNearby, getTodayCount, netChange } = require('./db');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -50,26 +49,26 @@ app.get('/', (req, res) => {
     <a href="/logout">Logout</a>`);
 });
 
-app.get('/api/v1/form_submit',(req, res)=>{
-    console.log('form request received');
-
+app.post('/api/v1/form_submit', async (req, res) => {
     const data = req.body;
-    const json = JSON.stringify(data);
-
-    try{
-        addEntry(json)
-          .then(() => {
-            console.log('UID stored successfully');
-          })
-        
+    try {
+        const result = await addEntry(data);
         res.status(200).send('Form submitted successfully');
-    }catch(err){
-        console.error('Error parsing JSON:', err);
-        return res.status(400).send('Invalid JSON');
+    } catch (err) {
+        console.error('Error storing entry:', err);
+        return res.status(500).send('Internal Server Error');
     }
 });
 
-// Route: profile — stores UID in MongoDB
+app.get('/api/v1/get_today', async (req, res) => {   
+    try {
+        const todayCount = await getTodayCount();
+        res.status(200).json(todayCount);
+    } catch (error) {
+        console.error('Error fetching today\'s count:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
 
 // Route: profile — stores UID in MongoDB, with improved logging
 app.get('/profile', async (req, res) => {
