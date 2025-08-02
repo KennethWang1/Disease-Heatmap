@@ -39,11 +39,14 @@ export default function Dashboard() {
             <Text
               style={{
                 flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
+                textAlign: "center",
+                textAlignVertical: "center",
+                fontSize: 30,
+                color: "red",
               }}
             >
-              HOT
+              HOT 
+              {/* To be changed */}
             </Text>
           </View>
           //For the second box in the first row
@@ -58,7 +61,17 @@ export default function Dashboard() {
               marginRight: scaleWidth(15),
               borderRadius: 40,
             }}
-          ></View>
+          ><Text
+              style={{
+                flex: 1,
+                textAlignVertical: "center",
+                textAlign: "center",
+                color: "white",
+              }}
+            >
+              HOT 
+              {/* To be changed */}
+            </Text></View>
         </View>
         <View
           style={{
@@ -83,7 +96,17 @@ export default function Dashboard() {
               flex: 1,
               borderRadius: 40,
             }}
-          ></View>
+          ><Text
+              style={{
+                flex: 1,
+                textAlignVertical: "center",
+                textAlign: "center",
+                color: "white",
+              }}
+            >
+              HOT
+              {/* to be changed */}
+            </Text></View>
           //For the second box in the second row
           <View
             style={{
@@ -97,7 +120,17 @@ export default function Dashboard() {
               marginTop: scaleHeight(-50),
               borderRadius: 40,
             }}
-          ></View>
+          ><Text
+              style={{
+                flex: 1,
+                textAlignVertical: "center",
+                textAlign: "center",
+                color: "white",
+              }}
+            >
+              HOT
+              {/* to be changed */}
+            </Text></View>
         </View>
         <View
           style={{

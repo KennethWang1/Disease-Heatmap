@@ -1,7 +1,20 @@
 import { scaleHeight, scaleWidth } from "@/utils/scale";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+// import SurveyButton from "../../components/SurveyButton";
 
 export default function Survey() {
+  const symptoms = [
+    ["Fever", false],
+    ["Cough", false],
+    ["Shortness of Breath", false],
+    ["Fatigue", false],
+    ["Muscle Pain", false],
+    ["Loss of Taste or Smell", false],
+    ["Sore Throat", false],
+    ["Headache", false],
+    ["Chills", false],
+    ["Congestion or Runny Nose", false],
+  ];
   return (
     <>
       <ScrollView
@@ -36,7 +49,18 @@ export default function Survey() {
               alignItems: "center",
               justifyContent: "center",
             }}
-          ></View>
+          >
+            {symptoms.map((symptom, index) => (
+              <Pressable
+                key={index}
+                onPress={() => {
+                  
+                }}
+              >
+                {symptom}
+              </Pressable>
+            ))}
+          </View>
           <View
             style={{
               height: scaleHeight(400),
