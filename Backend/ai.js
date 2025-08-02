@@ -88,10 +88,26 @@ async function findDiseaseOutbreak(data) {
       }
     }
     try {
-      fullResponse = JSON.parse(fullResponse);
-      return fullResponse;
+      // Clean the response by removing markdown code blocks
+      let cleanedResponse = fullResponse.trim();
+      
+      // Remove ```json and ``` if present
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      // Additional cleanup for any remaining backticks or whitespace
+      cleanedResponse = cleanedResponse.trim();
+      
+      console.log(`Cleaned response (attempt ${i}):`, cleanedResponse);
+      
+      const parsedResponse = JSON.parse(cleanedResponse);
+      return parsedResponse;
     } catch (error) {
       console.error(`Error parsing response (attempt ${i}): `, error);
+      console.error(`Raw response was: `, fullResponse);
     }  
   }
 
