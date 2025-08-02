@@ -1,207 +1,94 @@
-const express = require('express');
-const http = require("http");
-const fs = require("fs");
-const cors = require('cors');
-const bodyParser = require("body-parser");
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 require('dotenv').config();
 
-const uri = process.env.MONGODB_URI;
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const { auth } = require('express-openid-connect');
 
-const MongoDBClient = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-async function run() {
-  try {
-    await MongoDBClient.connect();
-    await MongoDBClient.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    await MongoDBClient.close();
-  }
-}
-run().catch(MongoDBClient.dir);
+const mongoose = require('./db');
+const Uid = require('./models/Uid');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Auth0 config
+const authConfig = {
+  authRequired: false,
+  auth0Logout: true,
+  secret: process.env.AUTH0_SECRET,
+  baseURL: process.env.AUTH0_BASE_URL,
+  clientID: process.env.AUTH0_CLIENT_ID,
+  issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
+};
+
+// Initialize Auth0 middleware
+app.use(auth(authConfig));
+
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://localhost:3001'],
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-  }));
+  origin: ['http://localhost:3000', 'https://localhost:3001'],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Log incoming requests
 app.use((req, res, next) => {
-    console.log('Incoming request: ' + req.url);
-    next();
+  console.log('Incoming request: ' + req.url);
+  next();
 });
 
-//endpoints here
+// Route: public home page
+app.get('/', (req, res) => {
+  res.send(`<h1>Home</h1>
+    <a href="/login">Login</a> |
+    <a href="/profile">Profile</a> |
+    <a href="/logout">Logout</a>`);
+});
 
-// Gemini AI Chat endpoint
-app.post('/api/gemini/chat', async (req, res) => {
-    try {
-        const { message, context } = req.body;
-        
-        if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
-        }
+// Route: profile — stores UID in MongoDB
 
-        // Create a prompt with context if provided
-        let prompt = message;
-        if (context) {
-            prompt = `Context: ${context}\n\nQuestion: ${message}`;
-        }
+// Route: profile — stores UID in MongoDB, with improved logging
+app.get('/profile', async (req, res) => {
+  console.log('🔒 /profile route hit');
+  if (!req.oidc.isAuthenticated()) {
+    console.log('❌ User not authenticated');
+    return res.status(401).send('Not logged in. <a href="/login">Login here</a>');
+  }
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+  const uid = req.oidc.user.sub;
+  console.log('🔑 Authenticated user sub:', uid);
 
-        res.json({
-            success: true,
-            response: text,
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('Gemini API error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to generate response',
-            message: error.message
-        });
+  try {
+    const existing = await Uid.findOne({ auth0Id: uid });
+    if (!existing) {
+      await Uid.create({ auth0Id: uid });
+      console.log('✅ Stored new UID in MongoDB:', uid);
+    } else {
+      console.log('ℹ️ UID already exists in MongoDB:', uid);
     }
+
+    res.send(`
+      <h1>User Profile</h1>
+      <pre>${JSON.stringify(req.oidc.user, null, 2)}</pre>
+      <p>Your UID is stored in the database.</p>
+      <a href="/">Home</a> | <a href="/logout">Logout</a>
+    `);
+  } catch (err) {
+    console.error('❌ MongoDB error:', err);
+    res.status(500).send('Error storing UID');
+  }
 });
 
-// Gemini AI Disease Analysis endpoint
-app.post('/api/gemini/analyze-disease', async (req, res) => {
-    try {
-        const { symptoms, location, demographics } = req.body;
-        
-        if (!symptoms) {
-            return res.status(400).json({ error: 'Symptoms are required' });
-        }
-
-        const prompt = `
-        As a medical information assistant, analyze the following health data:
-        
-        Symptoms: ${symptoms}
-        ${location ? `Location: ${location}` : ''}
-        ${demographics ? `Demographics: ${JSON.stringify(demographics)}` : ''}
-        
-        Please provide:
-        1. Possible conditions that might match these symptoms
-        2. Severity assessment
-        3. Recommendations for next steps
-        4. Any geographic health patterns if location is provided
-        
-        Note: This is for informational purposes only and should not replace professional medical advice.
-        `;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        res.json({
-            success: true,
-            analysis: text,
-            timestamp: new Date().toISOString(),
-            disclaimer: "This analysis is for informational purposes only. Please consult healthcare professionals for medical advice."
-        });
-
-    } catch (error) {
-        console.error('Gemini Disease Analysis error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to analyze disease data',
-            message: error.message
-        });
-    }
+// 404 handler
+app.use((req, res) => {
+  res.status(404).send('Not Found');
 });
 
-// Gemini AI Health Insights endpoint
-app.post('/api/gemini/health-insights', async (req, res) => {
-    try {
-        const { healthData, timeframe } = req.body;
-        
-        if (!healthData) {
-            return res.status(400).json({ error: 'Health data is required' });
-        }
-
-        const prompt = `
-        Analyze the following health data and provide insights:
-        
-        Health Data: ${JSON.stringify(healthData)}
-        ${timeframe ? `Time Frame: ${timeframe}` : ''}
-        
-        Please provide:
-        1. Trends and patterns in the data
-        2. Risk factors identification
-        3. Preventive measures recommendations
-        4. Areas of concern that require attention
-        
-        Focus on population health trends and geographic patterns if applicable.
-        `;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        res.json({
-            success: true,
-            insights: text,
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('Gemini Health Insights error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to generate health insights',
-            message: error.message
-        });
-    }
-});
-
-// Test Gemini connection endpoint
-app.get('/api/gemini/test', async (req, res) => {
-    try {
-        const result = await model.generateContent("Say hello and confirm you're working correctly for a disease heatmap application.");
-        const response = await result.response;
-        const text = response.text();
-
-        res.json({
-            success: true,
-            message: 'Gemini AI is connected successfully',
-            response: text,
-            timestamp: new Date().toISOString()
-        });
-
-    } catch (error) {
-        console.error('Gemini test error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to connect to Gemini AI',
-            message: error.message
-        });
-    }
-});
-
-app.use((req, res)=>{
-    res.status(404).send('Not Found');
-});
-
+// Start the HTTP server
 http.createServer(app).listen(port, () => {
-    console.log(`HTTP server up and running on port ${port}`);
+  console.log(`HTTP server up and running on http://localhost:${port}`);
 });
