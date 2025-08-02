@@ -45,7 +45,7 @@ export default function Dashboard() {
                 color: "red",
               }}
             >
-              HOT 
+              HOT
               {/* To be changed */}
             </Text>
           </View>
@@ -61,7 +61,8 @@ export default function Dashboard() {
               marginRight: scaleWidth(15),
               borderRadius: 40,
             }}
-          ><Text
+          >
+            <Text
               style={{
                 flex: 1,
                 textAlignVertical: "center",
@@ -69,9 +70,10 @@ export default function Dashboard() {
                 color: "white",
               }}
             >
-              HOT 
+              HOT
               {/* To be changed */}
-            </Text></View>
+            </Text>
+          </View>
         </View>
         <View
           style={{
@@ -96,7 +98,8 @@ export default function Dashboard() {
               flex: 1,
               borderRadius: 40,
             }}
-          ><Text
+          >
+            <Text
               style={{
                 flex: 1,
                 textAlignVertical: "center",
@@ -106,7 +109,8 @@ export default function Dashboard() {
             >
               HOT
               {/* to be changed */}
-            </Text></View>
+            </Text>
+          </View>
           //For the second box in the second row
           <View
             style={{
@@ -120,7 +124,8 @@ export default function Dashboard() {
               marginTop: scaleHeight(-50),
               borderRadius: 40,
             }}
-          ><Text
+          >
+            <Text
               style={{
                 flex: 1,
                 textAlignVertical: "center",
@@ -130,7 +135,8 @@ export default function Dashboard() {
             >
               HOT
               {/* to be changed */}
-            </Text></View>
+            </Text>
+          </View>
         </View>
         <View
           style={{
