@@ -205,4 +205,33 @@ async function netChange(longitude, latitude){
   }
 }
 
-module.exports = { mongoose, addEntry, getDisease, getTodayCount, netChange };
+async function getNearby(longitude, latitude) {
+  try {
+    const centerPoint = [longitude, latitude];
+    const entries = await User.find({
+      location: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: centerPoint
+          },
+          $maxDistance: radiusInMeters
+        }
+      }
+    });
+
+    var nearbyPoints = [];
+    entries.forEach(entry => {
+      if (entry.gemini_info.seriousness && entry.gemini_info.seriousness > 2) {
+        nearbyPoints.push(entry.location.coordinates);
+      }
+    });
+
+    return nearbyPoints;
+  } catch (error) {
+    console.error('Error fetching nearby entries:', error);
+    throw error;
+  }
+}
+
+module.exports = { mongoose, addEntry, getDisease, getTodayCount, netChange, getNearby };

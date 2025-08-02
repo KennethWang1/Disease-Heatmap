@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const { auth } = require('express-openid-connect');
 const User = require('./models/Uid');
 const { stat } = require('fs');
-const { mongoose, addEntry, getDisease, getTodayCount, netChange } = require('./db');
+const { mongoose, addEntry, getDisease, getTodayCount, netChange, getNearby } = require('./db');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -85,6 +85,17 @@ app.get('/api/v1/find_disease', async (req, res) => {
         res.status(200).json(change);
     } catch (error) {
         console.error('Error fetching disease information:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+app.get('/api/v1/get_nearby', async (req, res) => {
+    try {
+        const { longitude, latitude } = req.body;
+        const nearbyEntries = await getNearby(longitude, latitude);
+        res.status(200).json(nearbyEntries);
+    } catch (error) {
+        console.error('Error fetching nearby entries:', error);
         res.status(500).send('Internal Server Error');
     }
 });
