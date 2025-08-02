@@ -1,6 +1,7 @@
-// db.js
+const radiusInMeters = 25000; // 25km
 const mongoose = require('mongoose');
 const User = require('./models/Uid');
+const { findDiseaseOutbreak } = require('./ai'); 
 
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
@@ -65,10 +66,9 @@ async function addEntry(data) {
   }
 }
 
-async function getNearby(longitude, latitude) {
+async function getDisease(longitude, latitude) {
   try {
     const centerPoint = [longitude, latitude];
-    const radiusInMeters = 25000; // 25km
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const nearbyRecentEntries = await User.find({
@@ -91,8 +91,14 @@ async function getNearby(longitude, latitude) {
         }
       ]
     });
+    var symptomsArray = [];
+    nearbyRecentEntries.forEach(entry => {
+      if (entry.gemini_info) {
+        symptomsArray.push(entry.gemini_info);
+      }
+    });
 
-    return nearbyRecentEntries;
+    return await findDiseaseOutbreak(symptomsArray);
   } catch (error) {
     console.error('Error finding nearby entries:', error);
     throw error;
@@ -116,45 +122,87 @@ async function getTodayCount(){
   }
 }
 
-async function netChange(){
-  const deltaTime = 7; //days
-  const past = new Date(Date.now() - deltaTime * 2 * 24 * 60 * 60 * 1000);
-  const currrent = new Date(Date.now() - deltaTime * 24 * 60 * 60 * 1000);
+async function netChange(longitude, latitude){
+  try {
+    const deltaTime = 7; //days
+    const past = new Date(Date.now() - deltaTime * 2 * 24 * 60 * 60 * 1000);
+    const current = new Date(Date.now() - deltaTime * 24 * 60 * 60 * 1000);
+    const centerPoint = [longitude, latitude];
 
-  const pastReports = await User.find({
-      date: {
-        $gte: past, $lt: currrent
+    const pastReports = await User.find({
+      $and: [
+        {
+          location: {
+            $near: {
+              $geometry: {
+                type: "Point",
+                coordinates: centerPoint
+              },
+              $maxDistance: radiusInMeters
+            }
+          }
+        },
+        {
+          date: {
+            $gte: past, 
+            $lt: current
+          }
+        }
+      ]
+    });
+
+    const currentReports = await User.find({
+      $and: [
+        {
+          location: {
+            $near: {
+              $geometry: {
+                type: "Point",
+                coordinates: centerPoint
+              },
+              $maxDistance: radiusInMeters
+            }
+          }
+        },
+        {
+          date: {
+            $gte: current
+          }
+        }
+      ]
+    });
+
+    const pastCount = pastReports.length;
+    const currentCount = currentReports.length;
+
+    if(pastCount == 0 || currentCount == 0){
+      throw new Error('Not enough data to calculate net change');
+    }
+
+    var pastSeverity = 0;
+    var currentSeverity = 0;
+
+    pastReports.forEach(report => {
+      if (report.gemini_info && report.gemini_info.seriousness) {
+        pastSeverity += report.gemini_info.seriousness;
       }
-  });
-  const currentReports = await User.find({
-      date: {
-        $gte: currrent
+    });
+
+    currentReports.forEach(report => {
+      if (report.gemini_info && report.gemini_info.seriousness) {
+        currentSeverity += report.gemini_info.seriousness;
       }
-  });
+    });
 
-  const pastCount = pastReports.length;
-  const currentCount = currentReports.length;
+    const pastAvgSeverity = pastSeverity / pastCount;
+    const currentAvgSeverity = currentSeverity / currentCount;
+    const netChangeValue = currentAvgSeverity - pastAvgSeverity;
 
-  if(pastCount == 0 || currentCount == 0){
-    throw new Error('Not enough data to calculate net change');
+    return netChangeValue;
+  } catch (error) {
+    console.error('Error calculating net change:', error);
+    throw error;
   }
-
-  var pastSeverity = 0;
-  var currentSeverity = 0;
-
-  pastReports.forEach(report => {
-    if (report.gemini_info && report.gemini_info.seriousness) {
-      pastSeverity += report.gemini_info.seriousness;
-    }
-  });
-
-  currentReports.forEach(report => {
-    if (report.gemini_info && report.gemini_info.seriousness) {
-      currentSeverity += report.gemini_info.seriousness;
-    }
-  });
-
-  return ((currentSeverity / currentCount) - (pastSeverity / pastCount));
 }
 
-module.exports = { mongoose, addEntry, getNearby, getTodayCount, netChange };
+module.exports = { mongoose, addEntry, getDisease, getTodayCount, netChange };

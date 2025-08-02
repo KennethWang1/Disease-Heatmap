@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const { auth } = require('express-openid-connect');
 const User = require('./models/Uid');
 const { stat } = require('fs');
-const { mongoose, addEntry, getNearby, getTodayCount, netChange } = require('./db');
+const { mongoose, addEntry, getDisease, getTodayCount, netChange } = require('./db');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,11 +22,10 @@ const authConfig = {
   issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
 };
 
-// Initialize Auth0 middleware
 app.use(auth(authConfig));
 
 app.use(cors({
-  origin: true, // Allow any origin
+  origin: true,
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -35,13 +34,11 @@ app.use(cors({
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Log incoming requests
 app.use((req, res, next) => {
   console.log('Incoming request: ' + req.url);
   next();
 });
 
-// Route: public home page
 app.get('/', (req, res) => {
   res.send(`<h1>Home</h1>
     <a href="/login">Login</a> |
@@ -66,6 +63,28 @@ app.get('/api/v1/get_today', async (req, res) => {
         res.status(200).json(todayCount);
     } catch (error) {
         console.error('Error fetching today\'s count:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+app.get('/api/v1/net_change', async (req, res) => {
+    try {
+        const { longitude, latitude } = req.body;
+        const change = await netChange(longitude, latitude);
+        res.status(200).json(change);
+    } catch (error) {
+        console.error('Error fetching net change:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+app.get('/api/v1/find_disease', async (req, res) => {
+    try {
+        const { longitude, latitude } = req.body;
+        const change = await getDisease(longitude, latitude);
+        res.status(200).json(change);
+    } catch (error) {
+        console.error('Error fetching disease information:', error);
         res.status(500).send('Internal Server Error');
     }
 });
