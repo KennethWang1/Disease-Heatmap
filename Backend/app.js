@@ -5,9 +5,10 @@ const http = require('http');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { auth } = require('express-openid-connect');
-
 const mongoose = require('./db');
-const Uid = require('./models/Uid');
+const User = require('./models/Uid');
+const { stat } = require('fs');
+const { addEntry } = require('./db');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -26,7 +27,7 @@ const authConfig = {
 app.use(auth(authConfig));
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://localhost:3001'],
+  origin: true, // Allow any origin
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -49,6 +50,25 @@ app.get('/', (req, res) => {
     <a href="/logout">Logout</a>`);
 });
 
+app.get('/api/v1/form_submit',(req, res)=>{
+    console.log('form request received');
+
+    const data = req.body;
+    const json = JSON.stringify(data);
+
+    try{
+        addEntry(json)
+          .then(() => {
+            console.log('UID stored successfully');
+          })
+        
+        res.status(200).send('Form submitted successfully');
+    }catch(err){
+        console.error('Error parsing JSON:', err);
+        return res.status(400).send('Invalid JSON');
+    }
+});
+
 // Route: profile — stores UID in MongoDB
 
 // Route: profile — stores UID in MongoDB, with improved logging
@@ -63,9 +83,9 @@ app.get('/profile', async (req, res) => {
   console.log('🔑 Authenticated user sub:', uid);
 
   try {
-    const existing = await Uid.findOne({ auth0Id: uid });
+    const existing = await User.findOne({ auth0Id: uid });
     if (!existing) {
-      await Uid.create({ auth0Id: uid });
+      await User.create({ auth0Id: uid });
       console.log('✅ Stored new UID in MongoDB:', uid);
     } else {
       console.log('ℹ️ UID already exists in MongoDB:', uid);
