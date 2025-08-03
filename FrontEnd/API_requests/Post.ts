@@ -28,7 +28,7 @@ async function findDiseaseOutbreak(uid : string, symptoms : [string], wellnessSc
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            return false;
         }
 
         return true;

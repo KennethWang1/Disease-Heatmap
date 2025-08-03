@@ -5,10 +5,12 @@ const bodyParser = require('body-parser');
 const { auth } = require('express-openid-connect');
 const User = require('./models/Uid');
 const { stat } = require('fs');
-const { mongoose, addEntry, getDisease, getTodayCount, netChange, getNearby } = require('./db');
+const { mongoose, addEntry, getDisease, getTodayCount, netChange, getNearby, get7days } = require('./db');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+var accounts = [];
 
 // Auth0 config
 const authConfig = {
@@ -20,14 +22,14 @@ const authConfig = {
   issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
 };
 
-app.use(auth(authConfig));
-
 app.use(cors({
   origin: true,
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: true,
+  allowedHeaders: true,
   credentials: true,
 }));
+
+app.use(auth(authConfig));
 
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -48,7 +50,11 @@ app.post('/api/v1/form_submit', async (req, res) => {
     const data = req.body;
     try {
         const result = await addEntry(data);
-        res.status(200).send('Form submitted successfully');
+        if(result){
+          res.status(200).send('Form submitted successfully');
+        } else {
+          res.status(400).send('Form submission failed: User has already submitted today');
+        }
     } catch (err) {
         console.error('Error storing entry:', err);
         return res.status(500).send('Internal Server Error');
@@ -95,6 +101,36 @@ app.get('/api/v1/get_nearby', async (req, res) => {
     res.status(200).send(nearbyEntries);
   } catch (error) {
     
+  }
+});
+
+app.post('/api/v1/make_account', async (req, res) => {
+  const { username, password } = req.body;
+  if(accounts[username]) {
+    return res.status(400).send('Account already exists');
+  }
+  accounts[username] = { password };
+  res.status(201).send('Account created');
+});
+
+app.get('/api/v1/get_account', (req, res) => {
+  console.log(accounts);
+  const { username, password } = req.body;
+  const pwd = accounts[username];
+  if (pwd && password && pwd.password == password) {
+    return res.status(200).json({ message: 'Login Successful' });
+  }
+  res.status(404).send('Login Failed');
+});
+
+app.get('/api/v1/get_7_days', async (req, res) => {
+  try {
+    const { longitude, latitude } = req.body;
+    const graph = await get7days(longitude, latitude);
+    res.status(200).json(graph);
+  } catch (error) {
+    console.error('Error fetching 7-day data:', error);
+    res.status(500).send('Internal Server Error');
   }
 });
 

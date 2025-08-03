@@ -19,6 +19,13 @@ mongoose.connection.on('error', (err) => {
 
 async function addEntry(data) {
   try {
+    const hasSubmitted = await User.findOne({ auth0Id: data.auth0Id, date: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000).setHours(0,0,0,0) } });
+
+    if (hasSubmitted) {
+      console.log('User has already submitted today:', data.auth0Id);
+      return false;
+    }
+
     // Handle the case where 'uid' is sent instead of 'auth0Id'
     if (data.uid && !data.auth0Id) {
       data.auth0Id = data.uid;
@@ -59,7 +66,7 @@ async function addEntry(data) {
       { upsert: true, new: true }
     );
     
-    return result;
+    return true;
   } catch (error) {
     console.error('Error in addEntry:', error);
     throw error;
@@ -234,4 +241,57 @@ async function getNearby(longitude, latitude) {
   }
 }
 
-module.exports = { mongoose, addEntry, getDisease, getTodayCount, netChange, getNearby };
+async function get7days(longitude, latitude){
+  try {
+    var graph = [];
+    var now = new Date();
+    var before = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
+    const centerPoint = [longitude, latitude];
+
+    for(var i = 5; i >= -1; i--){
+      var earlier = new Date(before.getTime() - i * 24 * 60 * 60 * 1000);
+      var later = new Date(before.getTime() - (i - 1) * 24 * 60 * 60 * 1000);
+      
+      const entries = await User.find({
+        $and: [
+          {
+            location: {
+              $near: {
+                $geometry: {
+                  type: "Point",
+                  coordinates: centerPoint
+                },
+                $maxDistance: radiusInMeters
+              }
+            }
+          },
+          {
+            date: {
+              $gte: earlier,
+              $lt: later
+            }
+          }
+        ]
+      });
+
+      var count = 0;
+      entries.forEach(entry => {
+        if (entry.gemini_info && entry.gemini_info.seriousness && entry.gemini_info.seriousness > 2) {
+          count++;
+        }
+      });
+
+      graph.push({
+        date: earlier.toISOString().split('T')[0],
+        count: count
+      });
+    }
+
+    return graph;
+  } catch (error) {
+    console.error('Error fetching 7-day data:', error);
+    throw error;
+  }
+}
+
+module.exports = { mongoose, addEntry, getDisease, getTodayCount, netChange, getNearby, get7days };
