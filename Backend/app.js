@@ -7,10 +7,25 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const { auth } = require('express-openid-connect');
 const User = require('./models/Uid');
-const { mongoose } = require('./db');
+const { stat } = require('fs');
+const { mongoose, addEntry, getDisease, getTodayCount, netChange, getNearby, get7days } = require('./db');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(bodyParser.json());
+
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// User model
+const userSchema = new mongoose.Schema({
+  auth0Id: { type: String, required: true, unique: true }
+});
+const User = mongoose.model('User', userSchema);
 
 // Auth0 config
 const authConfig = {
@@ -22,25 +37,54 @@ const authConfig = {
   issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
 };
 
-// Initialize Auth0 middleware
 app.use(auth(authConfig));
 
 // Middleware
 app.use(cors({
   origin: true,
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: true,
+  allowedHeaders: true,
   credentials: true,
 }));
+
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Route: Automatically redirects to Auth0 Universal Login
-app.get('/login', (req, res) => {
-  res.oidc.login();
+// Log incoming requests
+app.use((req, res, next) => {
+  console.log('Incoming request: ' + req.url);
+  next();
 });
 
-// Route: Save UID after login, send minimal response
+// Route: public home page
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Home</h1>
+    <a href="/login">Login</a> |
+    <a href="/profile">Profile</a> |
+    <a href="/logout">Logout</a>
+  `);
+});
+
+app.post('/api/v1/form_submit', async (req, res) => {
+  try {
+    await addEntry(req.body);
+    res.status(200).send('Form submitted successfully');
+  } catch {
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+app.get('/api/v1/get_today', async (req, res) => {   
+    try {
+        const todayCount = await getTodayCount();
+        res.status(200).json(todayCount);
+    } catch (error) {
+        console.error('Error fetching today\'s count:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
 app.get('/profile', async (req, res) => {
   if (!req.oidc.isAuthenticated()) {
     return res.status(401).json({ message: 'Not logged in' });

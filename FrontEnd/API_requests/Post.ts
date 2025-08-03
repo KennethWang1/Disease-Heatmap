@@ -33,8 +33,17 @@ async function findDiseaseOutbreak(
       body: JSON.stringify(jsonData),
     });
 
+        if (!response.ok) {
+            return false;
+        }
     if (!response.ok) {
       return false;
+    }
+
+        return true;
+    } catch (error) {
+        console.error('Error in findDiseaseOutbreak:', error);
+        throw error;
     }
 
     return true;
