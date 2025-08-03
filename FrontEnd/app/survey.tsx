@@ -1,10 +1,13 @@
+import { findDiseaseOutbreak } from "@/API_requests/Post";
 import { scaleHeight, scaleWidth } from "@/utils/scale";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+// import * as SecureStore from "expo-secure-store";
+
+// import Slider from "@react-native-community/slider";
 
 export default function Survey() {
-  //For the symptoms
+  /*For the symptoms*/
   const symptoms = [
     ["Fever", false],
     ["Cough", false],
@@ -27,17 +30,74 @@ export default function Survey() {
     setSymptomsPressed(updatedSymptoms);
   };
 
-  //For the slider of how the respondant is feeling
-  const [sliderValue, setSliderValue] = useState(1);
+  //For how the respondant is feeling
+  const ratings = [
+    [1, false],
+    [2, false],
+    [3, false],
+    [4, false],
+    [5, false],
+  ];
 
-  const submit = () => {
+  const [ratingPressed, setRatingPressed] = useState(ratings.map(() => false));
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const changeRating = (index: number) => {
+    const updatedRating = ratingPressed.map((_, i) => i == index);
+    setRatingPressed(updatedRating);
+  };
+
+  const submit = async () => {
+    if (isSubmitting) {
+      return; // Prevent double submission
+    }
+
+    setIsSubmitting(true);
+
     const symptomsShown = [];
+    let wellnessNumber = 0;
+
     for (let i = 0; i < symptoms.length; i++) {
       if (symptomsPressed[i]) {
         symptomsShown.push(symptoms[i][0]);
       }
     }
-    return symptomsShown;
+
+    for (let i = 0; i < ratings.length; i++) {
+      if (ratingPressed[i]) {
+        wellnessNumber = i + 1; // Fixed: adding 1 since ratings are 1-5, not 0-4
+      }
+    }
+
+    try {
+      const isSuccess = await findDiseaseOutbreak(
+        "name",
+        symptomsShown,
+        wellnessNumber,
+        3,
+        0.24
+      );
+
+      // isSuccess is now the value of response.ok
+      if (isSuccess) {
+        Alert.alert(
+          "Success",
+          "You have successfully submitted your survey for t"
+        );
+        console.log("Response was OK (status 200-299)");
+      } else {
+        Alert.alert(
+          "Error",
+          "You have already submitted the survey today. Try again tomorrow."
+        );
+        console.log("Response was not OK (status outside 200-299 range)");
+      }
+    } catch (error) {
+      console.error("Error submitting survey:", error);
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   return (
     <>
@@ -120,6 +180,7 @@ export default function Survey() {
           //For the scale from 1-5 of how the respondant is feeling
           <View
             style={{
+              paddingTop: scaleHeight(20),
               height: scaleHeight(400),
               width: scaleWidth(390),
               borderColor: "#23272A",
@@ -128,24 +189,46 @@ export default function Survey() {
               gap: scaleHeight(20),
               alignItems: "center",
               justifyContent: "center",
+              flexDirection: "row",
+              flexWrap: "wrap",
             }}
           >
-            <Slider
-              style={{ width: 200, height: 40 }}
-              minimumValue={1}
-              maximumValue={5}
-              minimumTrackTintColor="#FFFFFF"
-              maximumTrackTintColor="#000000"
-              value={sliderValue}
-              onValueChange={(value) => setSliderValue(value)}
-            />
             <Text
               style={{
                 color: "white",
+                paddingBottom: scaleHeight(8),
               }}
             >
-              {sliderValue}
+              How bad are your symptoms, on a scale of 1-5?
             </Text>
+            {ratings.map((ratings, index) => (
+              <Pressable
+                style={{
+                  borderColor: "#D9D9D9",
+                  borderWidth: 1,
+                  backgroundColor: ratingPressed[index] ? "#D9D9D9" : "#000000",
+                  height: scaleHeight(50),
+                  width: scaleWidth(100),
+                  borderRadius: 40,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                key={index}
+                onPress={() => {
+                  changeRating(index);
+                }}
+              >
+                <Text
+                  style={{
+                    textAlign: "center",
+                    color: ratingPressed[index] ? "#000000" : "#D9D9D9",
+                    fontSize: 12,
+                  }}
+                >
+                  {ratings[0]}
+                </Text>
+              </Pressable>
+            ))}
           </View>
           <View
             style={{
@@ -171,7 +254,15 @@ export default function Survey() {
               alignItems: "center",
               justifyContent: "center",
             }}
-          ></View>
+          >
+            <Pressable
+              style={{
+                height: scaleHeight(100),
+                width: scaleWidth(390),
+              }}
+              onPress={() => submit()}
+            ></Pressable>
+          </View>
         </View>
       </ScrollView>
     </>

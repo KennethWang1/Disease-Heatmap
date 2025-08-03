@@ -17,7 +17,20 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.treewhacksun.FrontEnd"
+      "package": "com.treewhacksun.FrontEnd",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "com.treewhacksun.FrontEnd.auth0",
+              "host": "dev-2e2z4f5bd70giowe.us.auth0.com",
+              "pathPrefix": "/android/com.treewhacksun.FrontEnd/callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -53,7 +66,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Mapbox, {
   MapView,
   Camera,
@@ -9,6 +9,10 @@ import Mapbox, {
   CircleLayer,
 } from "@rnmapbox/maps";
 import * as Location from "expo-location";
+import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import Drawer from "@/components/Drawer";
+import { scaleHeight } from "@/utils/scale";
+import { getNearby } from "@/API_requests/Get";
 
 Mapbox.setAccessToken(
   "pk.eyJ1IjoidHJlZXdoYWNrc3VuIiwiYSI6ImNtZHRzOG9oYTByNGQyaXB6ZXJoOTlscGkifQ.Rm7XvHtehOxhaPHLWHIrog"
@@ -54,6 +58,43 @@ const geojson: GeoJSON.FeatureCollection = {
 };
 
 export default function HomeScreen() {
+  const [geojson, setGeojson] = useState<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  const [drawer, setDrawer] = useState(false);
+  // hooks
+  const sheetRef = useRef<BottomSheet>(null);
+
+  // variables
+  const data = useMemo(
+    () =>
+      Array(50)
+        .fill(0)
+        .map((_, index) => `index-${index}`),
+    []
+  );
+  const snapPoints = useMemo(() => ["25%", "50%", "90%"], []);
+
+  // callbacks
+  const handleSheetChange = useCallback((index: any) => {
+    console.log("handleSheetChange", index);
+  }, []);
+  const handleSnapPress = useCallback((index: any) => {
+    sheetRef.current?.snapToIndex(index);
+  }, []);
+  const handleClosePress = useCallback(() => {
+    sheetRef.current?.close();
+  }, []);
+
+  useEffect(() => {
+    if (drawer) {
+      sheetRef.current?.snapToIndex(1); // animate in
+    } else {
+      sheetRef.current?.close(); // animate out
+    }
+  }, [drawer]);
+
   const [location, setLocation] = useState<Location.LocationObject | null>(
     null
   );
@@ -62,7 +103,7 @@ export default function HomeScreen() {
 
   // 1. Get location (but don't set camera here)
   useEffect(() => {
-    (async () => {
+    const fetchLocationAndNearbyData = async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== "granted") {
@@ -79,7 +120,36 @@ export default function HomeScreen() {
           location.coords.latitude
         );
       }
-    })();
+
+      try {
+        const response = await getNearby();
+
+        // Convert to GeoJSON - adjust based on your API response format
+        const coordinates = response.map((item: { longitude: any; latitude: any; }) => {
+          // Assuming each item has longitude and latitude properties
+          return [item.longitude, item.latitude];
+        });
+
+        const newGeojson: GeoJSON.FeatureCollection = {
+          type: "FeatureCollection",
+          features: coordinates.map((coords: any) => ({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: coords,
+              },
+              properties: {},
+            })),
+          };
+
+        setGeojson(newGeojson);
+        console.log("GeoJSON data:", newGeojson);
+      } catch (error) {
+        console.error("Failed to fetch nearby data:", error);
+      }
+    };
+
+    fetchLocationAndNearbyData();
   }, []);
 
   // 2. Once camera and location are ready, center the map
@@ -96,10 +166,14 @@ export default function HomeScreen() {
 
   // Optional fallback to fly to Toronto
   const flyToToronto = () => {
+    if (!location) return;
     camera.current?.setCamera({
-      centerCoordinate: [-79.3832, 43.6532], // Toronto [lng, lat]
+      centerCoordinate: [
+        location.coords.latitude || 40,
+        location.coords.longitude || 30,
+      ], // Toronto [lng, lat]
       zoomLevel: 10,
-      animationDuration: 2000,
+      animationDuration: 1000,
       animationMode: "flyTo",
     });
   };
@@ -112,7 +186,11 @@ export default function HomeScreen() {
           styleURL="mapbox://styles/mapbox/dark-v11"
           projection="globe"
           scaleBarEnabled={false}
-          onPress={flyToToronto}
+          onPress={() => {
+            flyToToronto();
+            console.log("WEEEEEEE");
+            setDrawer(!drawer);
+          }}
         >
           <Camera
             ref={camera}
@@ -203,6 +281,25 @@ export default function HomeScreen() {
           </ShapeSource>
         </MapView>
       </View>
+      {drawer && (
+        <BottomSheet
+          ref={sheetRef}
+          index={1}
+          snapPoints={snapPoints}
+          enableDynamicSizing={false}
+          onChange={handleSheetChange}
+          handleIndicatorStyle={{ backgroundColor: "white" }}
+          backgroundStyle={{ backgroundColor: "black" }}
+        >
+          <BottomSheetScrollView
+            contentContainerStyle={{
+              backgroundColor: "black",
+            }}
+          >
+            <Drawer />
+          </BottomSheetScrollView>
+        </BottomSheet>
+      )}
     </View>
   );
 }
@@ -210,16 +307,18 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#000000",
   },
   container: {
     flex: 1,
     width: "100%",
-    backgroundColor: "tomato",
+    marginBottom: scaleHeight(10), // Adjust for Nav bar
   },
   map: {
     flex: 1,
   },
 });
+function fetchAndConvertNearbyData() {
+  throw new Error("Function not implemented.");
+}
+
