@@ -54,7 +54,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="account"
+        name="loginpage"
         options={{
           title: "",
           tabBarIcon: ({ color, size }) => (
