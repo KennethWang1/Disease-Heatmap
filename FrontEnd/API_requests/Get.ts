@@ -1,7 +1,7 @@
 import { getCurrentLocation } from './Location';
 
 async function getToday(){
-    const response = await fetch('http://localhost:3000/api/v1/get_today', {
+    const response = await fetch('https://complete-seagull-pet.ngrok-free.app/api/v1/get_today', {
         method: 'GET',
     }).then(res => res.json());
 
@@ -22,7 +22,7 @@ async function netChange(){
         "latitude": location.latitude
     });
 
-    const response = await fetch("http://localhost:3000/api/v1/net_change", {
+    const response = await fetch("https://complete-seagull-pet.ngrok-free.app/api/v1/net_change", {
         method: "GET",
         headers: myHeaders,
         body: raw,
@@ -49,7 +49,7 @@ async function getDiseaseOutbreaks() {
         "latitude": location.latitude
     });
 
-    const response = await fetch("http://localhost:3000/api/v1/find_disease", {
+    const response = await fetch("https://complete-seagull-pet.ngrok-free.app/api/v1/find_disease", {
         method: "GET",
         headers: myHeaders,
         body: raw,
@@ -76,7 +76,7 @@ async function getNearby() {
         "latitude": location.latitude
     });
 
-    const response = await fetch("http://localhost:3000/api/v1/get_nearby", {
+    const response = await fetch("https://complete-seagull-pet.ngrok-free.app/api/v1/get_nearby", {
         method: "GET",
         headers: myHeaders,
         body: raw,
