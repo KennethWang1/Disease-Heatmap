@@ -1,9 +1,10 @@
 import { scaleHeight, scaleWidth } from "@/utils/scale";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-// import SurveyButton from "../../components/SurveyButton";
+import Slider from "@react-native-community/slider";
 
 export default function Survey() {
+  //For the symptoms
   const symptoms = [
     ["Fever", false],
     ["Cough", false],
@@ -21,11 +22,23 @@ export default function Survey() {
   );
 
   const changeSymptoms = (index: number) => {
-    const updatedSymptoms = symptomsPressed;
+    const updatedSymptoms = [...symptomsPressed];
     updatedSymptoms[index] = !updatedSymptoms[index];
     setSymptomsPressed(updatedSymptoms);
   };
 
+  //For the slider of how the respondant is feeling
+  const [sliderValue, setSliderValue] = useState(1);
+
+  const submit = () => {
+    const symptomsShown = [];
+    for (let i = 0; i < symptoms.length; i++) {
+      if (symptomsPressed[i]) {
+        symptomsShown.push(symptoms[i][0]);
+      }
+    }
+    return symptomsShown;
+  };
   return (
     <>
       <ScrollView
@@ -49,11 +62,13 @@ export default function Survey() {
             borderRadius: 40,
           }}
         >
+          //For the question about symptoms
           <View
             style={{
+              paddingTop: scaleHeight(20),
               height: scaleHeight(400),
               width: scaleWidth(390),
-              borderColor: "red",
+              borderColor: "#23272A",
               borderRadius: 40,
               borderWidth: 4,
               gap: scaleHeight(20),
@@ -63,13 +78,27 @@ export default function Survey() {
               flexWrap: "wrap",
             }}
           >
+            <Text
+              style={{
+                color: "white",
+                paddingBottom: scaleHeight(8),
+              }}
+            >
+              Click all of the symptoms you are experiencing:
+            </Text>
             {symptoms.map((symptom, index) => (
               <Pressable
                 style={{
-                  backgroundColor: "red",
+                  borderColor: "#D9D9D9",
+                  borderWidth: 1,
+                  backgroundColor: symptomsPressed[index]
+                    ? "#D9D9D9"
+                    : "#000000",
                   height: scaleHeight(50),
                   width: scaleWidth(100),
                   borderRadius: 40,
+                  justifyContent: "center",
+                  alignItems: "center",
                 }}
                 key={index}
                 onPress={() => {
@@ -79,14 +108,44 @@ export default function Survey() {
                 <Text
                   style={{
                     textAlign: "center",
-                    textAlignVertical: "center",
-                    color: symptoms[index][1] ? "red" : "blue",
+                    color: symptomsPressed[index] ? "#000000" : "#D9D9D9",
+                    fontSize: 12,
                   }}
                 >
                   {symptom[0]}
                 </Text>
               </Pressable>
             ))}
+          </View>
+          //For the scale from 1-5 of how the respondant is feeling
+          <View
+            style={{
+              height: scaleHeight(400),
+              width: scaleWidth(390),
+              borderColor: "#23272A",
+              borderRadius: 40,
+              borderWidth: 4,
+              gap: scaleHeight(20),
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Slider
+              style={{ width: 200, height: 40 }}
+              minimumValue={1}
+              maximumValue={5}
+              minimumTrackTintColor="#FFFFFF"
+              maximumTrackTintColor="#000000"
+              value={sliderValue}
+              onValueChange={(value) => setSliderValue(value)}
+            />
+            <Text
+              style={{
+                color: "white",
+              }}
+            >
+              {sliderValue}
+            </Text>
           </View>
           <View
             style={{
@@ -100,19 +159,7 @@ export default function Survey() {
               justifyContent: "center",
             }}
           ></View>
-          <View
-            style={{
-              height: scaleHeight(400),
-              width: scaleWidth(390),
-              borderColor: "#23272A",
-              borderRadius: 40,
-              borderWidth: 4,
-              gap: scaleHeight(20),
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          ></View>
-
+          //For the submit button
           <View
             style={{
               height: scaleHeight(100),

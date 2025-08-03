@@ -13,14 +13,12 @@ const port = process.env.PORT || 3000;
 var accounts = [];
 
 // Auth0 config
-const authConfig = {
-  authRequired: false,
-  auth0Logout: true,
+app.use(auth({
   secret: process.env.AUTH0_SECRET,
   baseURL: process.env.AUTH0_BASE_URL,
   clientID: process.env.AUTH0_CLIENT_ID,
   issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
-};
+}));
 
 app.use(cors({
   origin: true,
@@ -34,16 +32,20 @@ app.use(auth(authConfig));
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Log incoming requests
 app.use((req, res, next) => {
   console.log('Incoming request: ' + req.url);
   next();
 });
 
+// Route: public home page
 app.get('/', (req, res) => {
-  res.send(`<h1>Home</h1>
+  res.send(`
+    <h1>Home</h1>
     <a href="/login">Login</a> |
     <a href="/profile">Profile</a> |
-    <a href="/logout">Logout</a>`);
+    <a href="/logout">Logout</a>
+  `);
 });
 
 app.post('/api/v1/form_submit', async (req, res) => {
@@ -136,42 +138,23 @@ app.get('/api/v1/get_7_days', async (req, res) => {
 
 // Route: profile — stores UID in MongoDB, with improved logging
 app.get('/profile', async (req, res) => {
-  console.log('🔒 /profile route hit');
   if (!req.oidc.isAuthenticated()) {
-    console.log('❌ User not authenticated');
     return res.status(401).send('Not logged in. <a href="/login">Login here</a>');
   }
 
   const uid = req.oidc.user.sub;
-  console.log('🔑 Authenticated user sub:', uid);
 
   try {
-    const existing = await User.findOne({ auth0Id: uid });
-    if (!existing) {
-      await User.create({ auth0Id: uid });
-      console.log('✅ Stored new UID in MongoDB:', uid);
-    } else {
-      console.log('ℹ️ UID already exists in MongoDB:', uid);
+    let user = await User.findOne({ auth0Id: uid });
+    if (!user) {
+      user = await User.create({ auth0Id: uid });
     }
-
-    res.send(`
-      <h1>User Profile</h1>
-      <pre>${JSON.stringify(req.oidc.user, null, 2)}</pre>
-      <p>Your UID is stored in the database.</p>
-      <a href="/">Home</a> | <a href="/logout">Logout</a>
-    `);
+    res.status(200).json({ success: true, uid: user.auth0Id });
   } catch (err) {
-    console.error('❌ MongoDB error:', err);
-    res.status(500).send('Error storing UID');
+    res.status(500).json({ error: 'Failed to store user UID.' });
   }
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).send('Not Found');
-});
-
-// Start the HTTP server
-http.createServer(app).listen(port, () => {
-  console.log(`HTTP server up and running on http://localhost:${port}`);
+app.listen(port, () => {
+  console.log(`Server listening on http://localhost:${port}`);
 });
