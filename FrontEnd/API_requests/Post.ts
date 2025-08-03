@@ -19,7 +19,7 @@ async function findDiseaseOutbreak(uid : string, symptoms : [string], wellnessSc
         };
 
         // Send data to your backend
-        const response = await fetch('http://localhost:3000/api/v1/form_submit', {
+        const response = await fetch('https://complete-seagull-pet.ngrok-free.app/api/v1/form_submit', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
